@@ -1,73 +1,154 @@
-const Member = require('../models/Member');
-const nodemailer = require('nodemailer');
+import Invite from '../models/Member.js';  
+import transporter from '../config/emailConfig.js'; 
 
 
-exports.inviteMember = async (req, res) => {
-  const { fullname, email, message, relationship, invitedBy } = req.body;
+export const sendInvite = async (req, res) => {
+  const { invitee, OTP, message, invitedBy } = req.body;
 
   try {
     
-    const existingMember = await Member.findOne({ email });
-    if (existingMember) {
-      return res.status(400).json({ message: 'Member already invited.' });
+    const existingInvite = await Invite.findOne({ invitee });
+    if (existingInvite) {
+      return res.status(400).json({ message: 'Invite already sent to this email.' });
     }
 
+    
+    const otp = OTP || Math.floor(100000 + Math.random() * 900000).toString();  
 
-    const newMember = new Member({ fullname, email, message, relationship, invitedBy });
-    const savedMember = await newMember.save();
-
-
-    const transporter = nodemailer.createTransport({
-      service: 'Gmail',
-      auth: {
-        user: process.env.EMAIL, 
-        pass: process.env.EMAIL_PASSWORD 
-      }
+    
+    const invite = new Invite({
+      invitee,
+      OTP: otp,
+      invitedBy,
+      message,
     });
 
+    
+    const savedInvite = await invite.save();
+
+    
+    const mailOptions = {
+      from: process.env.EMAIL,  
+      to: invitee,
+      subject: `Invitation from ${invitedBy}`,
+      html: `
+        <h1>Hello ${invitee},</h1>
+        <p>You have been invited by ${invitedBy}.</p>
+        <p>Message: ${message}</p>
+        <p>Your OTP is: ${otp}</p>
+        <p>Please use this OTP to complete the invitation process.</p>
+      `,
+    };
+
+  
+    await transporter.sendMail(mailOptions);
+
+    res.status(201).json({ message: 'Invitation sent successfully', invite: savedInvite });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+export const getAllInvites = async (req, res) => {
+  try {
+    const invites = await Invite.find();
+    res.status(200).json(invites);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+export const acceptInvite = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const invite = await Invite.findById(id);
+    if (!invite) {
+      return res.status(404).json({ message: 'Invite not found.' });
+    }
+
+    
+    invite.status = 'accepted';
+    await invite.save();
+
+    
     const mailOptions = {
       from: process.env.EMAIL,
-      to: email,
-      subject: `You're Invited by ${invitedBy}`,
+      to: invite.invitee,
+      subject: `Your invite status has been updated`,
       html: `
-        <h1>Hello ${fullname},</h1>
-        <p>${invitedBy} has invited you to join their group as a ${relationship}.</p>
-        <p>${message}</p>
-        <p>Please accept the invitation to complete the process.</p>
-      `
+        <h1>Invitation Status</h1>
+        <p>Your invitation has been accepted by ${invite.invitedBy}.</p>
+      `,
     };
 
     await transporter.sendMail(mailOptions);
 
-    res.status(201).json({ message: 'Invitation sent successfully', member: savedMember });
+    res.status(200).json({ message: 'Invite accepted successfully', invite });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
 
-exports.getAllMembers = async (req, res) => {
-  try {
-    const members = await Member.find();
-    res.status(200).json(members);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-
-exports.updateStatus = async (req, res) => {
+export const rejectInvite = async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
 
   try {
-    const member = await Member.findById(id);
-    if (!member) return res.status(404).json({ message: 'Member not found.' });
+    const invite = await Invite.findById(id);
+    if (!invite) {
+      return res.status(404).json({ message: 'Invite not found.' });
+    }
 
-    member.status = status;
-    await member.save();
+    invite.status = 'rejected';
+    await invite.save();
 
-    res.status(200).json({ message: 'Status updated successfully', member });
+    const mailOptions = {
+      from: process.env.EMAIL,
+      to: invite.invitee,
+      subject: `Your invite status has been updated`,
+      html: `
+        <h1>Invitation Status</h1>
+        <p>Your invitation has been rejected by ${invite.invitedBy}.</p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ message: 'Invite rejected successfully', invite });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+export const updateInviteStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;  
+
+  try {
+    const invite = await Invite.findById(id);
+    if (!invite) {
+      return res.status(404).json({ message: 'Invite not found.' });
+    }
+
+    invite.status = status;  // Update the status of the invite
+    await invite.save();
+
+    // Send a confirmation email after the invite is accepted or rejected
+    const mailOptions = {
+      from: process.env.EMAIL,  // Your email address
+      to: invite.invitee,
+      subject: `Your invite status has been updated`,
+      html: `
+        <h1>Invitation Status</h1>
+        <p>Your invitation has been ${status} by ${invite.invitedBy}.</p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ message: `Invite ${status} successfully`, invite });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
