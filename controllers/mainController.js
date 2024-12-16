@@ -4,6 +4,7 @@ import User from "../models/User.js";
 import { transporter, mailOptions } from "../utils/gmail.config.js";
 import bcryptjs from "bcryptjs";
 import dotenv from "dotenv";
+import jwt from "jsonwebtoken"
 import crypto from "crypto";
 
 const router = express.Router();
@@ -72,22 +73,34 @@ export const verifyOTP = async (req, res) => {
  * @login
  */
 
-export const Login = async(req,res)=>{
-    try {
-        const {email, password} = req.body
-        if(!email ||!password) return res.status(400).json({success:false, message:"Missing fields"})
-        const user = await User.findOne({email}).select("+password")
-        if(!user) return res.status(404).json({success:false, message:"User not found"})
-        const isMatch = await bcryptjs.compare(password, user.password)
-        if(!isMatch) return res.status(401).json({success:false, message:"Incorrect password"})
-        // const token = user.generateAuthToken()
-        res.json({success:true, message:"Logged in successfully"})
-        
-    } catch (error) {
-        res.status(500).json({success:false, message: error.message})       
-    
-    }
-}
+export const  Login = async (req, res) => {
+  try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+          return res.status(400).json({ success: false, message: "Missing fields" });
+      }
+
+      const user = await User.findOne({ email }).select("+password");
+      
+      if (!user) {
+          return res.status(404).json({ success: false, message: "User not found" });
+      }
+      const isMatch = await bcryptjs.compare(password, user.password);
+      if (!isMatch) {
+          return res.status(401).json({ success: false, message: "Incorrect password" });
+      }
+      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+      res.json({
+          success: true,
+          message: "Logged in successfully",
+          token: token 
+      });
+
+  } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 export const googleLogin = async(req,res)=>{
   
