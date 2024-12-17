@@ -4,10 +4,10 @@ import { authenticateUser } from '../middlewares/auth.js';
 
 const router = express.Router();
 
-router.post('/send', authenticateUser, sendInvite); 
-router.get('/', authenticateUser, getAllInvites);
-router.put('/accept/:id', authenticateUser, acceptInvite); 
-router.put('/reject/:id', authenticateUser, rejectInvite);
-router.put('/status/:id', authenticateUser, updateInviteStatus); 
+router.post('/send', sendInvite); 
+router.get('/',  getAllInvites);
+router.put('/accept/:id', acceptInvite); 
+router.put('/reject/:id', rejectInvite);
+router.put('/status/:id', updateInviteStatus); 
 
 export default router;
