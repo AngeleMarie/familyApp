@@ -33,7 +33,7 @@ app.use(session({
 
 // CORS configuration
 app.use(cors({
-  origin: ["http://localhost:8081"],  
+  origin: ["http://localhost:8081","exp://192.168.137.212:8081"],  
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 }));

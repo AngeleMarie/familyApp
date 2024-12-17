@@ -18,11 +18,11 @@ export const authenticateUser = async (req, res, next) => {
     jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
         if (err) {
             console.error('Token verification error:', err);
-            return res.status(403).json({ message: 'Token is invalid or expired' }); // Forbidden if token is invalid or expired
+            return res.status(403).json({ message: 'Token is invalid or expired' }); 
         }
 
         try {
-            const user = await User.findById(decoded.id); // Find user by ID from the decoded token
+            const user = await User.findById(decoded.id); 
 
             if (!user) {
                 console.error('User not found for ID:', decoded.id);
